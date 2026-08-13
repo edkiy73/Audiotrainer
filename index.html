@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Слепая расшифровка</title>
+<meta name="theme-color" content="#171A1F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E4E8EB; --panel:#FFFFFF; --panel-2:#F4F6F8; --ink:#171A1F; --ink-2:#3D4653;
+  --muted:#6E7885; --line:#D4DAE0; --line-2:#E7EBEF;
+  --teal:#0C6E66; --teal-b:#14C0AE; --amber:#A65D08; --amber-bg:#FDF0DC;
+  --red:#B42318; --red-bg:#FDECEA; --green:#067647; --green-bg:#E7F6EE;
+  --r:8px; --tap:44px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  font-size:14px; line-height:1.4; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+h1,h2{margin:0;font-weight:600;letter-spacing:-.02em}
+button{font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+input,textarea,select{font-family:inherit;font-size:16px;color:var(--ink)}
+:focus-visible{outline:2px solid var(--teal-b);outline-offset:2px}
+.hide{display:none!important}
+
+/* ---------- shell: фиксированная высота, скролл только внутри экранов ---------- */
+.app{
+  height:100vh; height:100dvh;
+  display:flex; flex-direction:column; overflow:hidden;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line)}
+.head .t{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.head b{font-size:13px;font-weight:600;letter-spacing:-.02em;white-space:nowrap}
+.head span{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+.head .sp{flex:1}
+.tbtn{background:transparent;border:1px solid var(--line);color:var(--ink-2);padding:7px 10px;border-radius:var(--r);font-size:12px}
+
+/* ---------- общие элементы ---------- */
+.lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);display:block;margin-bottom:5px}
+.fld{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:11px 11px;min-height:var(--tap)}
+textarea.fld{resize:vertical;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.5}
+.hint{font-size:12px;color:var(--muted)}
+.btn{background:var(--ink);color:#fff;border:1px solid var(--ink);padding:0 16px;min-height:var(--tap);border-radius:var(--r);font-weight:600;font-size:14px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.teal{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn:disabled{opacity:.4}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.err{background:var(--red-bg);border:1px solid #F0C0BA;color:var(--red);padding:9px 11px;border-radius:var(--r);font-size:12.5px;line-height:1.45}
+.ok-msg{background:var(--green-bg);border:1px solid #B7E0C9;color:var(--green);padding:9px 11px;border-radius:var(--r);font-size:12.5px}
+.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.seg button{background:transparent;border:0;padding:0 12px;min-height:var(--tap);color:var(--ink-2);font-size:13px;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button.on{background:var(--ink);color:#fff}
+
+/* ---------- экран настройки ---------- */
+#scSetup{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 32px}
+.setup{max-width:640px;margin:0 auto}
+.setup h1{font-size:22px;letter-spacing:-.03em;margin-bottom:5px}
+.setup .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.blk{padding:12px}
+.blk+.blk{margin-top:10px}
+details{border-top:1px solid var(--line-2);margin-top:10px;padding-top:9px}
+summary{cursor:pointer;font-size:12.5px;color:var(--teal);font-weight:500;min-height:26px}
+details ol,details ul{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--ink-2)}
+details li{margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+select.fld{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
+/* ---------- экран тренировки ---------- */
+#scWork{flex:1;display:flex;flex-direction:column;min-height:0;gap:7px;padding:8px 10px 10px}
+
+.stage{position:relative;background:#0D0F13;border-radius:10px;overflow:hidden;flex:0 0 auto;transition:height .18s ease}
+.stage.audio{height:56px}
+.stage.video{height:min(34dvh,220px)}
+.stage iframe,.stage video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#0D0F13}
+.blind{position:absolute;inset:0;background:#0D0F13;display:none;align-items:center;justify-content:center;gap:4px}
+.blind.on{display:flex}
+.blind i{display:block;width:4px;background:var(--teal-b);border-radius:3px;height:10px;opacity:.85}
+.blind.play i{animation:vu .9s ease-in-out infinite}
+.blind i:nth-child(2){animation-delay:.1s}.blind i:nth-child(3){animation-delay:.22s}
+.blind i:nth-child(4){animation-delay:.05s}.blind i:nth-child(5){animation-delay:.3s}
+.blind i:nth-child(6){animation-delay:.16s}.blind i:nth-child(7){animation-delay:.26s}
+@keyframes vu{0%,100%{height:8px}50%{height:30px}}
+@media(prefers-reduced-motion:reduce){.blind.play i{animation:none;height:20px}}
+
+/* лента отрезков */
+.strip{flex:0 0 auto;display:flex;gap:3px;background:var(--ink);padding:5px;border-radius:10px}
+.cell{position:relative;flex:1;min-width:0;height:36px;background:#242A33;border-radius:4px;overflow:hidden;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px;cursor:pointer;border:0}
+.cell .n{font-family:"IBM Plex Mono",monospace;font-size:9px;color:#8A93A0;position:relative;z-index:2}
+.cell .bars{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:2px;opacity:.5}
+.cell .bars i{width:2px;background:#5C6673;border-radius:2px}
+.cell.silent .bars{opacity:.2}
+.cell.done{background:#0E4F4A}.cell.done .bars i{background:var(--teal-b)}.cell.done .n{color:#9FE8DF}
+.cell.cur{background:#123B57;box-shadow:inset 0 0 0 1.5px var(--teal-b)}.cell.cur .n{color:#fff}
+.cell .head{position:absolute;top:0;bottom:0;left:0;width:2px;background:var(--teal-b);transform:translateX(var(--p,0px));z-index:3;opacity:0}
+.cell.cur .head{opacity:.9}
+
+.meta{flex:0 0 auto;display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:"IBM Plex Mono",monospace}
+.meta .big{font-size:12.5px;font-weight:600;letter-spacing:-.02em}
+.meta .small{font-size:11px;color:var(--muted)}
+
+#entry{flex:1 1 auto;min-height:64px;width:100%;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--teal);
+  border-radius:var(--r);padding:10px 11px;font-family:"IBM Plex Mono",monospace;font-size:16px;line-height:1.45;resize:none}
+#entry::placeholder{color:#9AA3AE}
+.silentnote{flex:0 0 auto;background:var(--amber-bg);border:1px solid #EBD3AC;color:var(--amber);padding:6px 9px;border-radius:var(--r);font-size:12px}
+
+.actions{flex:0 0 auto;display:flex;gap:7px}
+.actions .btn{flex:1;padding:0 8px;font-size:14px}
+.actions .btn.w{flex:0 0 auto;width:52px;font-size:16px;padding:0}
+
+.transport{flex:0 0 auto;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.transport::-webkit-scrollbar{display:none}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:var(--r);padding:0 12px;min-height:38px;font-size:13px;color:var(--ink-2);white-space:nowrap;display:flex;align-items:center;gap:5px}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.transport .seg button{min-height:38px;padding:0 10px;font-size:12px}
+.keys{flex:0 0 auto;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--muted);display:none;gap:10px;flex-wrap:wrap}
+kbd{background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 4px;font:inherit;color:var(--ink-2)}
+#playErr{flex:0 0 auto}
+
+/* ---------- экран сверки ---------- */
+#scRes{flex:1;display:flex;flex-direction:column;min-height:0}
+.resscroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px 14px}
+.scorebar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.score{font-family:"IBM Plex Mono",monospace;font-size:40px;font-weight:600;letter-spacing:-.04em;line-height:1}
+.score small{font-size:16px;color:var(--muted)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-2)}
+.legend b{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.diff{padding:10px 0;font-family:"IBM Plex Mono",monospace;font-size:15px;line-height:2}
+.w{padding:2px 3px;border-radius:3px}
+.w.ok{color:var(--green);background:var(--green-bg)}
+.w.miss{color:var(--amber);background:var(--amber-bg);text-decoration:underline;text-decoration-style:dotted}
+.w.extra{color:var(--red);background:var(--red-bg);text-decoration:line-through}
+.w.playing{box-shadow:inset 0 0 0 1.5px var(--teal-b)}
+table.cmp{width:100%;border-collapse:collapse;font-size:12.5px}
+table.cmp th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;padding:6px 6px;border-bottom:1px solid var(--line)}
+table.cmp td{padding:6px;border-bottom:1px solid var(--line-2);vertical-align:top}
+table.cmp td.t{font-family:"IBM Plex Mono",monospace;color:var(--muted);white-space:nowrap;font-size:11px}
+table.cmp tr.bad td{background:#FFFBFA}
+.resfoot{flex:0 0 auto;display:flex;gap:7px;padding:9px 12px;border-top:1px solid var(--line);background:var(--paper)}
+.resfoot .btn{flex:1;padding:0 6px;font-size:13.5px}
+.hist{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.hist span{font-family:"IBM Plex Mono",monospace;font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:2px 5px;color:var(--ink-2)}
+
+/* ---------- широкий экран: две колонки ---------- */
+@media(min-width:900px) and (min-height:560px){
+  #scWork{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);grid-template-rows:1fr auto;
+    grid-template-areas:"stage panel" "trans panel";gap:10px 14px;padding:12px 16px;max-width:1240px;margin:0 auto;width:100%}
+  .stage{grid-area:stage;align-self:start;width:100%}
+  .stage.audio{height:64px}
+  .stage.video{height:auto;aspect-ratio:16/9;max-height:62dvh}
+  #playErr{grid-area:trans;align-self:start}
+  .transport{grid-area:trans;align-self:end}
+  .wpanel{grid-area:panel;display:flex;flex-direction:column;min-height:0;gap:8px}
+  .keys{display:flex}
+}
+@media(max-width:899px){.wpanel{display:contents}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="head">
+    <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#171A1F"/><g fill="#14C0AE"><rect x="12" y="26" width="5" height="12" rx="2"/><rect x="21" y="18" width="5" height="28" rx="2"/><rect x="30" y="23" width="5" height="18" rx="2"/><rect x="39" y="14" width="5" height="36" rx="2"/><rect x="48" y="28" width="5" height="8" rx="2"/></g></svg>
+    <div class="t"><b>Слепая расшифровка</b><span>аудирование без подсказок</span></div>
+    <div class="sp"></div>
+    <button class="tbtn hide" id="btnReset">Новое видео</button>
+  </div>
+
+  <!-- ===================== НАСТРОЙКА ===================== -->
+  <section id="scSetup">
+   <div class="setup">
+    <h1>Слушай отрезками. Сверяйся раз в минуту.</h1>
+    <p class="sub">Приложение режет дорожку на короткие отрезки по границам фраз, прячет текст и возвращает его только на сверке.</p>
+
+    <div class="card blk">
+      <span class="lbl">Источник звука</span>
+      <div class="seg" id="segSrc" style="width:fit-content;margin-bottom:12px">
+        <button data-s="yt" class="on">YouTube</button>
+        <button data-s="file">Файл с устройства</button>
+      </div>
+
+      <div id="srcYt">
+        <label class="lbl" for="url">Ссылка на видео или ID</label>
+        <input id="url" class="fld mono" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" inputmode="url">
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost" id="btnFetch" style="flex:1">⤓ Загрузить субтитры</button>
+          <select id="lang" class="fld hide" style="flex:0 0 128px;min-height:44px"></select>
+        </div>
+        <div id="fetchMsg" class="hide" style="margin-top:8px"></div>
+        <div id="fileWarn" class="err hide" style="margin-top:8px"></div>
+      </div>
+
+      <div id="srcFile" class="hide">
+        <label class="lbl" for="media">Видео или аудио файл</label>
+        <input id="media" class="fld" type="file" accept="video/*,audio/*">
+        <div class="hint" style="margin-top:6px">Играет прямо из памяти браузера, никуда не загружается. После перезагрузки страницы файл нужно выбрать заново — ответы сохранятся.</div>
+      </div>
+    </div>
+
+    <div class="card blk">
+      <label class="lbl" for="subs">Субтитры — SRT, VTT или расшифровка YouTube</label>
+      <textarea id="subs" class="fld" rows="5" placeholder="00:00:05,120 --> 00:00:08,400&#10;the thing about deadlines is"></textarea>
+      <div class="hint" style="margin-top:6px">Файл .srt или .vtt можно перетащить в окно.</div>
+      <details>
+        <summary>Взять субтитры руками</summary>
+        <ol>
+          <li>Открой видео на YouTube, под ним «…ещё» → «Показать расшифровку видео».</li>
+          <li>Выдели весь текст расшифровки и скопируй.</li>
+          <li>Вставь сюда. Метки времени можно оставить — парсер понимает оба варианта.</li>
+        </ol>
+      </details>
+      <details>
+        <summary>Настроить автозагрузку субтитров</summary>
+        <ul>
+          <li>YouTube не отдаёт субтитры прямо в браузер — нужен свой мини-прокси.</li>
+          <li>В архиве лежит <b>worker.js</b>: заведи бесплатный Cloudflare Worker, вставь код, задеплой.</li>
+          <li>Адрес воркера вида <span class="mono">https://имя.workers.dev</span> впиши ниже — кнопка «Загрузить субтитры» начнёт работать.</li>
+        </ul>
+        <div style="margin-top:9px">
+          <label class="lbl" for="proxy">Адрес сервера субтитров</label>
+          <input id="proxy" class="fld mono" placeholder="https://имя.workers.dev" autocomplete="off" inputmode="url" style="font-size:13px">
+        </div>
+      </details>
+    </div>
+
+    <div class="card blk">
+      <span class="lbl">Как резать</span>
+      <div class="seg" id="segCut" style="width:fit-content">
+        <button data-c="smart" class="on">По фразам</button>
+        <button data-c="strict">Ровно по секундам</button>
+      </div>
+      <div class="hint" style="margin:7px 0 12px" id="cutHint">Отрезок заканчивается на паузе в речи рядом с целевой длиной — слова не рвутся пополам.</div>
+      <div class="grid2">
+        <div>
+          <label class="lbl" for="clen">Целевая длина отрезка</label>
+          <select id="clen" class="fld mono">
+            <option value="3">3 секунды</option>
+            <option value="5" selected>5 секунд</option>
+            <option value="8">8 секунд</option>
+            <option value="10">10 секунд</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="cblk">Отрезков в блоке</label>
+          <select id="cblk" class="fld mono">
+            <option value="6">6</option>
+            <option value="12" selected>12</option>
+            <option value="24">24</option>
+          </select>
+        </div>
+      </div>
+      <label class="row" style="gap:8px;font-size:13.5px;margin-top:12px;min-height:32px">
+        <input type="checkbox" id="punct" style="width:18px;height:18px"> Учитывать пунктуацию и регистр
+      </label>
+    </div>
+
+    <div id="setupErr" class="err hide" style="margin-top:10px"></div>
+
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="btnStart" style="flex:1">Начать тренировку</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost hide" id="btnResume" style="flex:1"></button>
+    </div>
+   </div>
+  </section>
+
+  <!-- ===================== ТРЕНИРОВКА ===================== -->
+  <section id="scWork" class="hide">
+    <div class="stage audio" id="stage">
+      <div id="player"></div>
+      <video id="localMedia" class="hide" playsinline webkit-playsinline preload="auto"></video>
+      <div class="blind on" id="blind"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div id="playErr" class="err hide"></div>
+
+    <div class="wpanel">
+      <div class="strip" id="strip"></div>
+      <div class="meta">
+        <span class="big" id="mChunk">Отрезок 1 / 12</span>
+        <span class="small" id="mTime">00:00 — 00:05</span>
+      </div>
+      <textarea id="entry" placeholder="Что услышал…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next"></textarea>
+      <div id="silentNote" class="silentnote hide">Здесь нет речи — можно сразу дальше.</div>
+      <div class="actions">
+        <button class="btn ghost w" id="btnPrev" aria-label="Назад">←</button>
+        <button class="btn" id="btnNext">Дальше →</button>
+        <button class="btn ghost" id="btnVerify" style="flex:0 0 auto;padding:0 14px">Сверить</button>
+      </div>
+      <div class="meta">
+        <span class="small" id="mBlock">Блок 1</span>
+        <span class="small" id="mDone">0 / 12</span>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button class="chip" id="btnPlay">▶ Играть</button>
+      <button class="chip" id="btnReplay">↺ Заново</button>
+      <div class="seg" id="segRate">
+        <button data-r="0.75">0.75×</button><button data-r="1" class="on">1×</button>
+        <button data-r="1.25">1.25×</button><button data-r="1.5">1.5×</button>
+      </div>
+      <button class="chip on" id="btnLoop">⟲ Цикл</button>
+      <button class="chip" id="btnVideo">▣ Видео</button>
+    </div>
+    <div class="keys">
+      <span><kbd>Enter</kbd> дальше</span><span><kbd>Esc</kbd> заново</span>
+      <span><kbd>Shift</kbd>+<kbd>Space</kbd> пауза</span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> сверить</span>
+    </div>
+  </section>
+
+  <!-- ===================== СВЕРКА ===================== -->
+  <section id="scRes" class="hide">
+    <div class="resscroll">
+      <div class="scorebar">
+        <div>
+          <span class="lbl" id="rTitle">Сверка</span>
+          <div class="score" id="rScore">0<small>%</small></div>
+        </div>
+        <div style="flex:1;min-width:180px">
+          <div class="legend">
+            <span><b style="background:var(--green)"></b>верно</span>
+            <span><b style="background:var(--amber)"></b>пропущено</span>
+            <span><b style="background:var(--red)"></b>лишнее</span>
+          </div>
+          <div class="hint mono" id="rStats" style="margin-top:6px"></div>
+          <div class="hint" style="margin-top:3px">Тап по слову — проиграть это место.</div>
+        </div>
+      </div>
+      <div class="diff" id="rDiff"></div>
+      <span class="lbl">Отрезок за отрезком</span>
+      <table class="cmp"><thead><tr><th style="width:88px">Время</th><th>Ты записал</th><th>Оригинал</th></tr></thead><tbody id="rRows"></tbody></table>
+      <div class="hist" id="hist"></div>
+    </div>
+    <div class="resfoot">
+      <button class="btn ghost" id="btnRedo">🔄 Повторить</button>
+      <button class="btn ghost" id="btnBack">К вводу</button>
+      <button class="btn teal" id="btnCont">Дальше →</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   Состояние
+   ============================================================ */
+const S = {
+  vid:null, raw:'', words:[], chunks:[], answers:{}, results:{},
+  chunk:0, chunkLen:5, perBlock:12, punct:false, cut:'smart',
+  loop:true, video:false, rate:1, player:null, ready:false, playing:false,
+  preview:null, duration:0, timer:null,
+  src:'yt', file:null, fileName:'', fileUrl:null, media:null,
+  fetched:null
+};
+const $ = s => document.querySelector(s);
+const isFile = location.protocol === 'file:';
+const KEY = () => 'blindtr:' + S.vid + ':' + S.chunkLen + ':' + S.perBlock + ':' + S.cut;
+
+const fmt = t => {
+  t = Math.max(0, t);
+  const h = Math.floor(t/3600), m = Math.floor(t%3600/60), s = Math.floor(t%60);
+  return (h ? h + ':' + String(m).padStart(2,'0') : String(m).padStart(2,'0')) + ':' + String(s).padStart(2,'0');
+};
+const blockOf = i => Math.floor(i / S.perBlock);
+const blockRange = b => {
+  const a = b * S.perBlock;
+  return [a, Math.min(a + S.perBlock, S.chunks.length) - 1];
+};
+
+/* ============================================================
+   Парсер субтитров: SRT / VTT / расшифровка YouTube
+   ============================================================ */
+function parseTimecode(str){
+  const m = str.trim().match(/^(?:(\d+):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/);
+  if(!m) return null;
+  return (+(m[1]||0))*3600 + (+m[2])*60 + (+m[3]) + (m[4] ? +(m[4].padEnd(3,'0'))/1000 : 0);
+}
+function clean(t){
+  return t.replace(/<[^>]*>/g,' ').replace(/\[[^\]]*\]/g,' ')
+    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"')
+    .replace(/\s+/g,' ').trim();
+}
+function parseCues(text){
+  const lines = text.replace(/\r/g,'').split('\n');
+  const cues = [];
+  for(let i=0;i<lines.length;i++){
+    if(!/-->/.test(lines[i])) continue;
+    const parts = lines[i].split('-->');
+    const st = parseTimecode(parts[0].trim().split(/\s+/)[0]);
+    const en = parseTimecode(parts[1].trim().split(/\s+/)[0]);
+    if(st === null || en === null) continue;
+    const buf = []; let j = i + 1;
+    while(j < lines.length && lines[j].trim() !== '' && !lines[j].includes('-->')){ buf.push(lines[j]); j++; }
+    const txt = clean(buf.join(' '));
+    if(txt) cues.push({s:st, e:Math.max(en, st + .3), text:txt});
+    i = j - 1;
+  }
+  if(cues.length) return dedupe(cues);
+
+  let pending = null;
+  for(const lnRaw of lines){
+    const ln = lnRaw.trim(); if(!ln) continue;
+    const inline = ln.match(/^((?:\d+:)?\d{1,2}:\d{2})\s+(.*\S)$/);
+    if(inline){ if(pending) cues.push(pending); pending = {s:parseTimecode(inline[1]), e:null, text:clean(inline[2])}; continue; }
+    if(/^((?:\d+:)?\d{1,2}:\d{2})$/.test(ln)){ if(pending) cues.push(pending); pending = {s:parseTimecode(ln), e:null, text:''}; continue; }
+    if(pending) pending.text = clean((pending.text + ' ' + ln).trim());
+  }
+  if(pending) cues.push(pending);
+  const ok = cues.filter(c => c.s !== null && c.text);
+  ok.forEach((c,i) => { if(c.e === null) c.e = ok[i+1] ? Math.max(ok[i+1].s, c.s + .5) : c.s + 4; });
+  return dedupe(ok);
+}
+function dedupe(cues){
+  cues.sort((a,b) => a.s - b.s);
+  const out = [];
+  for(const c of cues){
+    const p = out[out.length-1];
+    if(p && Math.abs(p.s - c.s) < .05 && p.text === c.text) continue;
+    if(p && p.text === c.text && c.s < p.e){ p.e = Math.max(p.e, c.e); continue; }
+    if(p && p.e > c.s) p.e = Math.max(c.s, p.s);
+    out.push(c);
+  }
+  return out;
+}
+/* слова: точные тайминги, если пришли с сервера; иначе оценка по длине слова */
+function cuesToWords(cues){
+  const words = [];
+  for(const c of cues){
+    if(Array.isArray(c.w) && c.w.length){
+      c.w.forEach((wd, k) => {
+        const parts = clean(wd.raw || '').split(/\s+/).filter(Boolean);
+        if(!parts.length) return;
+        const next = Math.min(c.w[k+1] ? c.w[k+1].t : c.e, c.e);
+        const span = Math.max(.12, next - wd.t);
+        const total = parts.reduce((a, w) => a + w.length + 1, 0);
+        let t = wd.t;
+        for(const raw of parts){
+          const d = span * (raw.length + 1) / total;
+          words.push({raw, s:t, e:t + d});
+          t += d;
+        }
+      });
+      continue;
+    }
+    const ws = c.text.split(/\s+/).filter(Boolean);
+    if(!ws.length) continue;
+    const total = ws.reduce((a,w) => a + w.length + 1, 0);
+    const dur = Math.max(.2, c.e - c.s);
+    let t = c.s;
+    for(const w of ws){ const d = dur * (w.length + 1) / total; words.push({raw:w, s:t, e:t + d}); t += d; }
+  }
+  return words.sort((a,b) => a.s - b.s);
+}
+
+/* ============================================================
+   Нарезка
+   ============================================================ */
+/* строго по сетке: слово уходит туда, где его середина */
+function chunksStrict(words, len){
+  const end = words.length ? words[words.length-1].e : len;
+  const n = Math.max(1, Math.ceil(end / len));
+  const out = [];
+  for(let i=0;i<n;i++) out.push({s:i*len, e:(i+1)*len, words:[]});
+  for(const w of words) out[Math.min(out.length-1, Math.floor((w.s + w.e)/2 / len))].words.push(w);
+  return out;
+}
+/* по фразам: граница отрезка ищется в паузе речи рядом с целевой длиной */
+function chunksSmart(words, target){
+  if(!words.length) return [{s:0, e:target, words:[]}];
+  const MIN = target * 0.55, MAX = target * 1.45, GAP_SKIP = 1.6;
+  const out = [];
+  let i = 0, prevEnd = 0;
+  while(i < words.length){
+    /* длинную тишину перед фразой не тащим в отрезок */
+    let s = prevEnd;
+    if(words[i].s - prevEnd > GAP_SKIP || out.length === 0) s = Math.max(0, words[i].s - 0.25);
+
+    let best = -1, bestScore = -Infinity, j = i;
+    while(j < words.length){
+      const dur = words[j].e - s;
+      if(dur > MAX && best >= 0) break;
+      const gap = (j + 1 < words.length ? words[j+1].s : Infinity) - words[j].e;
+      if(dur >= MIN || j === words.length - 1){
+        /* пауза после слова и знак конца фразы = хорошая граница; отклонение от цели штрафуем */
+        const tail = words[j].raw.slice(-1);
+        const punctBonus = '.?!…'.includes(tail) ? 0.9 : (',;:—'.includes(tail) ? 0.4 : 0);
+        const score = Math.min(gap, 1.2) * 2.0 + punctBonus - Math.abs(dur - target) * 0.55;
+        if(score > bestScore){ bestScore = score; best = j; }
+      }
+      if(dur > MAX && best >= 0) break;
+      j++;
+    }
+    if(best < 0) best = Math.min(j, words.length - 1);
+
+    const endW = words[best];
+    const nextS = best + 1 < words.length ? words[best+1].s : endW.e + .3;
+    const e = Math.max(endW.e + .12, Math.min(endW.e + .45, (endW.e + nextS) / 2));
+    out.push({s, e:Math.max(e, s + .8), words:words.slice(i, best + 1)});
+    prevEnd = out[out.length-1].e;
+    i = best + 1;
+  }
+  return out;
+}
+function buildChunks(words, len, mode){
+  const out = (mode === 'strict' ? chunksStrict(words, len) : chunksSmart(words, len));
+  out.forEach((c, i) => {
+    c.i = i;
+    c.text = c.words.map(w => w.raw).join(' ');
+    c.silent = c.words.length === 0;
+  });
+  return out;
+}
+
+/* ============================================================
+   Нормализация и diff
+   ============================================================ */
+function norm(w){
+  let s = w.replace(/[\u2018\u2019\u02BC]/g,"'");
+  if(!S.punct) s = s.toLowerCase().replace(/[^\p{L}\p{N}'\-]/gu,'').replace(/^[-']+|[-']+$/g,'');
+  return s;
+}
+function tokens(text){
+  return String(text||'').split(/\s+/).filter(Boolean).map(raw => ({raw, n:norm(raw)})).filter(t => t.n !== '');
+}
+function diffWords(A, B){
+  const n = A.length, m = B.length, dp = [];
+  for(let i=0;i<=n;i++) dp.push(new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)
+    for(let j=m-1;j>=0;j--)
+      dp[i][j] = A[i].n === B[j].n ? dp[i+1][j+1] + 1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  const ops = []; let i = 0, j = 0;
+  while(i < n && j < m){
+    if(A[i].n === B[j].n){ ops.push({t:'eq', o:A[i]}); i++; j++; }
+    else if(dp[i+1][j] >= dp[i][j+1]){ ops.push({t:'miss', o:A[i]}); i++; }
+    else { ops.push({t:'extra', u:B[j]}); j++; }
+  }
+  while(i < n) ops.push({t:'miss', o:A[i++]});
+  while(j < m) ops.push({t:'extra', u:B[j++]});
+  return ops;
+}
+
+/* ============================================================
+   Плеер: YouTube или локальный файл
+   ============================================================ */
+function pTime(){
+  if(!S.ready) return 0;
+  if(S.src === 'file') return S.media.currentTime || 0;
+  return S.player && S.player.getCurrentTime ? S.player.getCurrentTime() : 0;
+}
+function pSeek(t){ if(!S.ready) return; if(S.src === 'file') S.media.currentTime = t; else S.player.seekTo(t, true); }
+function pPlay(){ if(!S.ready) return; if(S.src === 'file'){ const p = S.media.play(); if(p && p.catch) p.catch(()=>{}); } else S.player.playVideo(); }
+function pPause(){ if(!S.ready) return; if(S.src === 'file') S.media.pause(); else S.player.pauseVideo(); }
+function pRate(r){ if(!S.ready) return; if(S.src === 'file') S.media.playbackRate = r; else S.player.setPlaybackRate(r); }
+function setPlaying(v){
+  S.playing = v;
+  $('#btnPlay').textContent = v ? '⏸ Пауза' : '▶ Играть';
+  $('#blind').classList.toggle('play', v);
+}
+function playError(msg){
+  $('#playErr').textContent = msg;
+  $('#playErr').classList.remove('hide');
+  setVideoMode(true);
+}
+function loadYT(){
+  return new Promise((res, rej) => {
+    if(window.YT && window.YT.Player) return res();
+    window.onYouTubeIframeAPIReady = res;
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api'; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+const YT_ERR = {
+  2:'YouTube не принял ID видео — проверь ссылку.',
+  5:'Плеер YouTube не смог запустить это видео.',
+  100:'Видео удалено или закрыто настройками приватности.',
+  101:'Владелец запретил встраивание этого видео. Возьми другое или подключи файлом.',
+  150:'Владелец запретил встраивание этого видео. Возьми другое или подключи файлом.',
+  153:'YouTube не пускает плеер: страница открыта как файл (file://). Запусти локальный сервер или переключись на «Файл с устройства».'
+};
+async function makePlayer(){
+  $('#playErr').classList.add('hide');
+  $('#localMedia').classList.add('hide');
+  $('#player').style.display = '';
+  if(isFile) return playError(YT_ERR[153]);
+  try{ await loadYT(); }
+  catch(_){ return playError('Не загрузился скрипт YouTube — проверь сеть или блокировщик.'); }
+
+  const vars = {cc_load_policy:0, controls:0, disablekb:1, modestbranding:1, rel:0, playsinline:1, iv_load_policy:3, fs:0, enablejsapi:1};
+  if(location.origin && location.origin !== 'null') vars.origin = location.origin;
+
+  S.player = new YT.Player('player', {
+    videoId:S.vid, host:'https://www.youtube.com', playerVars:vars,
+    events:{
+      onReady:e => {
+        S.ready = true; S.duration = e.target.getDuration() || 0;
+        try{ e.target.unloadModule('captions'); e.target.unloadModule('cc'); }catch(_){}
+        e.target.setPlaybackRate(S.rate);
+        gotoChunk(S.chunk);
+      },
+      onStateChange:e => {
+        setPlaying(e.data === 1);
+        if(e.data === 1){ try{ S.player.unloadModule('captions'); }catch(_){} }
+      },
+      onError:e => playError(YT_ERR[e.data] || ('Плеер YouTube вернул ошибку ' + e.data + '.'))
+    }
+  });
+}
+function makeLocal(){
+  $('#playErr').classList.add('hide');
+  $('#player').style.display = 'none';
+  const v = $('#localMedia');
+  v.classList.remove('hide');
+  S.media = v;
+  if(S.fileUrl) URL.revokeObjectURL(S.fileUrl);
+  S.fileUrl = URL.createObjectURL(S.file);
+  v.src = S.fileUrl;
+  v.onloadedmetadata = () => { S.ready = true; S.duration = v.duration || 0; v.playbackRate = S.rate; gotoChunk(S.chunk); };
+  v.onplay = () => setPlaying(true);
+  v.onpause = () => setPlaying(false);
+  v.onerror = () => playError('Браузер не открыл этот файл. Попробуй mp4, m4a, mp3 или webm.');
+  v.load();
+}
+function startPlayer(){
+  S.ready = false;
+  if(S.src === 'file' && S.file) makeLocal(); else makePlayer();
+  if(!S.timer) S.timer = setInterval(tick, 70);
+}
+function tick(){
+  if(!S.ready) return;
+  const t = pTime();
+  if(S.preview){
+    if(t >= S.preview.e){ pPause(); document.querySelectorAll('.w.playing').forEach(el => el.classList.remove('playing')); S.preview = null; }
+    return;
+  }
+  const c = S.chunks[S.chunk];
+  if(!c) return;
+  if(t >= c.e - 0.04){ if(S.loop) pSeek(c.s); else { pPause(); pSeek(c.s); } }
+  const cell = $('#strip .cell.cur');
+  if(cell){
+    const p = Math.min(1, Math.max(0, (t - c.s) / (c.e - c.s)));
+    cell.style.setProperty('--p', (p * cell.clientWidth) + 'px');
+  }
+}
+function playChunk(){
+  const c = S.chunks[S.chunk]; if(!c || !S.ready) return;
+  S.preview = null; pSeek(c.s); pRate(S.rate); pPlay();
+}
+function playRange(s, e, el){
+  if(!S.ready) return;
+  document.querySelectorAll('.w.playing').forEach(x => x.classList.remove('playing'));
+  if(el) el.classList.add('playing');
+  S.preview = {s:Math.max(0, s - .25), e:e + .25};
+  pSeek(S.preview.s); pPlay();
+}
+function setVideoMode(on){
+  S.video = on;
+  $('#stage').className = 'stage ' + (on ? 'video' : 'audio');
+  $('#blind').classList.toggle('on', !on);
+  $('#btnVideo').classList.toggle('on', on);
+}
+
+/* ============================================================
+   Экраны и рендер
+   ============================================================ */
+function show(which){
+  $('#scSetup').classList.toggle('hide', which !== 'setup');
+  $('#scWork').classList.toggle('hide', which !== 'work');
+  $('#scRes').classList.toggle('hide', which !== 'res');
+  $('#btnReset').classList.toggle('hide', which === 'setup');
+}
+function renderStrip(){
+  const [a, z] = blockRange(blockOf(S.chunk));
+  const strip = $('#strip');
+  strip.innerHTML = '';
+  for(let i=a;i<=z;i++){
+    const c = S.chunks[i];
+    const b = document.createElement('button');
+    b.className = 'cell' + (i === S.chunk ? ' cur' : '') + (c.silent ? ' silent' : '') + ((S.answers[i]||'').trim() ? ' done' : '');
+    b.title = fmt(c.s) + ' — ' + fmt(c.e);
+    const bars = document.createElement('span'); bars.className = 'bars';
+    const seed = Math.max(1, c.words.length);
+    for(let k=0;k<4;k++){
+      const el = document.createElement('i');
+      el.style.height = (c.silent ? 3 : 5 + ((seed * (k + 3) * 7) % 15)) + 'px';
+      bars.appendChild(el);
+    }
+    const head = document.createElement('span'); head.className = 'head';
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = i - a + 1;
+    b.append(bars, head, n);
+    b.onclick = () => { saveAnswer(); gotoChunk(i); };
+    strip.appendChild(b);
+  }
+}
+function renderMeta(){
+  const c = S.chunks[S.chunk], b = blockOf(S.chunk), [a, z] = blockRange(b);
+  $('#mChunk').textContent = 'Отрезок ' + (S.chunk - a + 1) + ' / ' + (z - a + 1);
+  $('#mTime').textContent = fmt(c.s) + ' — ' + fmt(c.e);
+  $('#mBlock').textContent = 'Блок ' + (b + 1) + ' · ' + fmt(S.chunks[a].s) + '–' + fmt(S.chunks[z].e);
+  let done = 0;
+  for(let i=a;i<=z;i++) if((S.answers[i]||'').trim() || S.chunks[i].silent) done++;
+  $('#mDone').textContent = done + ' / ' + (z - a + 1);
+  $('#silentNote').classList.toggle('hide', !c.silent);
+}
+function gotoChunk(i){
+  if(i < 0 || i >= S.chunks.length) return;
+  S.chunk = i;
+  $('#entry').value = S.answers[i] || '';
+  renderStrip(); renderMeta(); save();
+  playChunk();
+  setTimeout(() => $('#entry').focus({preventScroll:true}), 30);
+}
+function saveAnswer(){ S.answers[S.chunk] = $('#entry').value; save(); }
+function next(){
+  saveAnswer();
+  const [, z] = blockRange(blockOf(S.chunk));
+  if(S.chunk >= z || S.chunk === S.chunks.length - 1) verify();
+  else gotoChunk(S.chunk + 1);
+}
+
+/* ============================================================
+   Сверка
+   ============================================================ */
+function verify(){
+  saveAnswer();
+  if(S.playing) pPause();
+  const b = blockOf(S.chunk), [a, z] = blockRange(b);
+  const orig = [];
+  for(let i=a;i<=z;i++) for(const w of S.chunks[i].words){ const n = norm(w.raw); if(n) orig.push({raw:w.raw, n, s:w.s, e:w.e}); }
+  const user = [];
+  for(let i=a;i<=z;i++) user.push(...tokens(S.answers[i] || ''));
+
+  const ops = diffWords(orig, user);
+  const eq = ops.filter(o => o.t === 'eq').length;
+  const acc = orig.length ? Math.round(eq / orig.length * 100) : 100;
+  S.results[b] = acc; save();
+
+  $('#rTitle').textContent = 'Блок ' + (b + 1) + ' · ' + fmt(S.chunks[a].s) + ' — ' + fmt(S.chunks[z].e);
+  $('#rScore').innerHTML = acc + '<small>%</small>';
+  $('#rStats').textContent = 'верно ' + eq + ' из ' + orig.length + ' · пропущено ' +
+    ops.filter(o => o.t === 'miss').length + ' · лишних ' + ops.filter(o => o.t === 'extra').length;
+
+  const d = $('#rDiff'); d.innerHTML = '';
+  if(!orig.length) d.innerHTML = '<span class="hint">В этом блоке нет речи.</span>';
+  ops.forEach(o => {
+    const el = document.createElement('span');
+    el.className = 'w ' + (o.t === 'eq' ? 'ok' : o.t === 'miss' ? 'miss' : 'extra');
+    el.textContent = o.t === 'extra' ? o.u.raw : o.o.raw;
+    if(o.o) el.onclick = () => playRange(o.o.s, o.o.e, el);
+    d.append(el, document.createTextNode(' '));
+  });
+
+  const rows = $('#rRows'); rows.innerHTML = '';
+  for(let i=a;i<=z;i++){
+    const c = S.chunks[i], mine = (S.answers[i] || '').trim();
+    const tr = document.createElement('tr');
+    if(!(c.silent || mine)) tr.className = 'bad';
+    tr.innerHTML = '<td class="t"></td><td class="mono"></td><td class="mono"></td>';
+    tr.children[0].textContent = fmt(c.s) + '–' + fmt(c.e);
+    tr.children[1].textContent = mine || (c.silent ? '—' : '(пусто)');
+    tr.children[2].textContent = c.text || '(тишина)';
+    tr.children[2].onclick = () => { if(c.words.length) playRange(c.s, c.e); };
+    rows.appendChild(tr);
+  }
+  const h = $('#hist'); h.innerHTML = '';
+  Object.keys(S.results).sort((x,y) => x - y).forEach(k => {
+    const s = document.createElement('span');
+    s.textContent = 'блок ' + (+k + 1) + ' · ' + S.results[k] + '%';
+    h.appendChild(s);
+  });
+
+  const last = z >= S.chunks.length - 1;
+  $('#btnCont').disabled = last;
+  $('#btnCont').textContent = last ? 'Конец' : 'Дальше →';
+  show('res');
+  $('.resscroll').scrollTop = 0;
+}
+
+/* ============================================================
+   Хранилище
+   ============================================================ */
+function save(){
+  try{
+    localStorage.setItem(KEY(), JSON.stringify({
+      vid:S.vid, raw:S.raw, cues:S.fetched, answers:S.answers, results:S.results, src:S.src, fileName:S.fileName,
+      chunk:S.chunk, chunkLen:S.chunkLen, perBlock:S.perBlock, punct:S.punct, cut:S.cut, ts:Date.now()
+    }));
+    localStorage.setItem('blindtr:last', KEY());
+  }catch(_){}
+}
+function loadLast(){
+  try{ const k = localStorage.getItem('blindtr:last'); return k ? JSON.parse(localStorage.getItem(k) || 'null') : null; }
+  catch(_){ return null; }
+}
+
+/* ============================================================
+   Автозагрузка субтитров через свой прокси
+   ============================================================ */
+function msg(el, text, kind){
+  el.className = kind === 'err' ? 'err' : 'ok-msg';
+  el.textContent = text;
+  el.classList.remove('hide');
+}
+async function fetchSubs(){
+  const box = $('#fetchMsg');
+  const proxy = $('#proxy').value.trim().replace(/\/+$/,'');
+  const id = videoId($('#url').value);
+  if(!id) return msg(box, 'Сначала вставь ссылку на видео.', 'err');
+  if(!proxy){
+    msg(box, 'Не задан адрес сервера субтитров. Разверни worker.js из архива на Cloudflare и впиши его адрес в «Настроить автозагрузку субтитров».', 'err');
+    return;
+  }
+  localStorage.setItem('blindtr:proxy', proxy);
+  msg(box, 'Загружаю…', 'ok');
+  try{
+    const lang = $('#lang').value || '';
+    const r = await fetch(proxy + '/?v=' + id + (lang ? '&lang=' + encodeURIComponent(lang) : ''));
+    const data = await r.json();
+    if(!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
+    if(!data.cues || !data.cues.length) throw new Error('у видео нет субтитров');
+
+    S.fetched = data.cues;
+    $('#subs').value = data.cues.map(c =>
+      fmt(c.s) + '.' + String(Math.round((c.s % 1) * 1000)).padStart(3,'0') + ' --> ' +
+      fmt(c.e) + '.' + String(Math.round((c.e % 1) * 1000)).padStart(3,'0') + '\n' + c.text
+    ).join('\n\n');
+
+    const sel = $('#lang');
+    if(Array.isArray(data.langs) && data.langs.length > 1){
+      sel.innerHTML = data.langs.map(l => '<option value="' + l.code + '"' + (l.code === data.lang ? ' selected' : '') + '>' + l.name + '</option>').join('');
+      sel.classList.remove('hide');
+    }
+    msg(box, 'Готово: ' + data.cues.length + ' реплик' + (data.lang ? ' · ' + data.lang : '') + (data.asr ? ' · автоматические' : ''), 'ok');
+  }catch(e){
+    S.fetched = null;
+    msg(box, 'Не вышло: ' + e.message + '. Вставь субтитры вручную — поле ниже.', 'err');
+  }
+}
+
+/* ============================================================
+   Старт
+   ============================================================ */
+function videoId(u){
+  u = (u || '').trim();
+  if(/^[\w-]{11}$/.test(u)) return u;
+  const m = u.match(/(?:v=|\/embed\/|youtu\.be\/|\/shorts\/|\/live\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+function fail(text){ msg($('#setupErr'), text, 'err'); $('#setupErr').scrollIntoView({block:'nearest'}); }
+
+function start(state){
+  const raw = state ? state.raw : $('#subs').value;
+  let id;
+  if(S.src === 'file'){
+    if(!S.file) return fail('Выбери видео или аудио файл.');
+    id = 'file:' + S.fileName;
+  } else {
+    id = state ? state.vid : videoId($('#url').value);
+    if(!id) return fail('Не разобрал ссылку. Нужен адрес youtube.com/watch?v=… или ID из 11 символов.');
+  }
+  if(!raw || raw.trim().length < 10) return fail('Нет субтитров — сверять будет не с чем.');
+
+  S.chunkLen = state ? state.chunkLen : +$('#clen').value;
+  S.perBlock = state ? state.perBlock : +$('#cblk').value;
+  S.punct    = state ? state.punct    : $('#punct').checked;
+  S.cut      = state ? (state.cut || 'smart') : S.cut;
+
+  const cues = (state && state.cues && state.cues.length) ? state.cues
+             : (S.fetched && !state) ? S.fetched : parseCues(raw);
+  if(!cues.length) return fail('В тексте не нашлись таймкоды. Нужен SRT, VTT или расшифровка YouTube с метками времени.');
+
+  S.vid = id; S.raw = raw;
+  if(state && state.cues) S.fetched = state.cues;
+  S.words = cuesToWords(cues);
+  S.chunks = buildChunks(S.words, S.chunkLen, S.cut);
+  S.answers = state ? (state.answers || {}) : {};
+  S.results = state ? (state.results || {}) : {};
+  S.chunk = state ? Math.min(state.chunk || 0, S.chunks.length - 1) : 0;
+
+  $('#setupErr').classList.add('hide');
+  show('work');
+  renderStrip(); renderMeta();
+  $('#entry').value = S.answers[S.chunk] || '';
+  startPlayer();
+  save();
+}
+
+/* ---------------- события ---------------- */
+function setSrc(v){
+  S.src = v;
+  [...$('#segSrc').children].forEach(b => b.classList.toggle('on', b.dataset.s === v));
+  $('#srcYt').classList.toggle('hide', v !== 'yt');
+  $('#srcFile').classList.toggle('hide', v !== 'file');
+  $('#setupErr').classList.add('hide');
+}
+$('#segSrc').onclick = e => { const b = e.target.closest('button'); if(b) setSrc(b.dataset.s); };
+$('#segCut').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  S.cut = b.dataset.c;
+  [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b));
+  $('#cutHint').textContent = S.cut === 'smart'
+    ? 'Отрезок заканчивается на паузе в речи рядом с целевой длиной — слова не рвутся пополам.'
+    : 'Жёсткая сетка по времени. Фраза может оборваться на середине.';
+};
+$('#media').onchange = e => { const f = e.target.files[0]; if(!f) return; S.file = f; S.fileName = f.name; $('#setupErr').classList.add('hide'); };
+$('#btnFetch').onclick = fetchSubs;
+$('#lang').onchange = fetchSubs;
+$('#subs').oninput = () => { S.fetched = null; };
+$('#btnStart').onclick = () => start(null);
+
+$('#btnNext').onclick = next;
+$('#btnPrev').onclick = () => { saveAnswer(); gotoChunk(S.chunk - 1); };
+$('#btnVerify').onclick = verify;
+$('#btnReplay').onclick = playChunk;
+$('#btnPlay').onclick = () => { if(!S.ready) return; S.playing ? pPause() : playChunk(); };
+$('#btnLoop').onclick = e => { S.loop = !S.loop; e.currentTarget.classList.toggle('on', S.loop); };
+$('#btnVideo').onclick = () => setVideoMode(!S.video);
+$('#segRate').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  S.rate = +b.dataset.r;
+  [...e.currentTarget.children].forEach(x => x.classList.toggle('on', x === b));
+  pRate(S.rate);
+};
+$('#entry').oninput = () => {
+  S.answers[S.chunk] = $('#entry').value;
+  const cell = $('#strip .cell.cur');
+  if(cell) cell.classList.toggle('done', !!$('#entry').value.trim());
+};
+$('#entry').onblur = saveAnswer;
+$('#entry').onkeydown = e => { if(e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey){ e.preventDefault(); next(); } };
+
+$('#btnRedo').onclick = () => {
+  const b = blockOf(S.chunk), [a, z] = blockRange(b);
+  for(let i=a;i<=z;i++) delete S.answers[i];
+  delete S.results[b];
+  show('work'); gotoChunk(a);
+};
+$('#btnCont').onclick = () => {
+  const [, z] = blockRange(blockOf(S.chunk));
+  if(z >= S.chunks.length - 1) return;
+  show('work'); gotoChunk(z + 1);
+};
+$('#btnBack').onclick = () => { show('work'); gotoChunk(S.chunk); };
+$('#btnReset').onclick = () => { if(S.playing) pPause(); show('setup'); };
+
+document.addEventListener('keydown', e => {
+  if($('#scWork').classList.contains('hide') && $('#scRes').classList.contains('hide')) return;
+  if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); verify(); return; }
+  if(e.key === 'Escape'){ e.preventDefault(); playChunk(); $('#entry').focus(); return; }
+  if(e.code === 'Space' && e.shiftKey){ e.preventDefault(); $('#btnPlay').click(); return; }
+  if(e.key === 'ArrowLeft' && e.shiftKey){ e.preventDefault(); saveAnswer(); gotoChunk(S.chunk - 1); }
+  if(e.key === 'ArrowRight' && e.shiftKey){ e.preventDefault(); saveAnswer(); gotoChunk(S.chunk + 1); }
+});
+
+['dragover','drop'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
+document.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0]; if(!f) return;
+  if(/^(video|audio)\//.test(f.type)){
+    S.file = f; S.fileName = f.name; setSrc('file'); show('setup'); return;
+  }
+  const r = new FileReader();
+  r.onload = () => { $('#subs').value = r.result; S.fetched = null; show('setup'); };
+  r.readAsText(f);
+});
+
+/* ---------------- инициализация ---------------- */
+(function init(){
+  if(isFile){
+    const w = $('#fileWarn');
+    w.textContent = 'Страница открыта как файл — YouTube выдаст ошибку 153. Запусти в этой папке python3 -m http.server и открой localhost:8000, либо возьми «Файл с устройства».';
+    w.classList.remove('hide');
+  }
+  const p = localStorage.getItem('blindtr:proxy');
+  if(p) $('#proxy').value = p;
+
+  const st = loadLast();
+  if(st && st.vid && st.raw){
+    const btn = $('#btnResume');
+    const local = st.src === 'file';
+    btn.classList.remove('hide');
+    btn.textContent = 'Продолжить: ' + (local ? st.fileName : st.vid) + ' · отрезок ' + ((st.chunk || 0) + 1);
+    btn.onclick = () => {
+      setSrc(st.src || 'yt');
+      $('#subs').value = st.raw; S.fetched = null;
+      if(local && !S.file){ S.fileName = st.fileName; return fail('Выбери тот же файл заново — браузер не хранит его между сессиями. Ответы на месте.'); }
+      start(st);
+    };
+    if(!local) $('#url').value = 'https://www.youtube.com/watch?v=' + st.vid;
+  }
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
