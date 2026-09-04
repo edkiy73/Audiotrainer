@@ -1,6 +1,6 @@
 /* English Trainer — офлайн-кэш.
-   Меняй CACHE при каждом обновлении файлов, иначе телефон покажет старую версию. */
-const CACHE = "english-trainer-v4";
+   Меняй CACHE при каждом обновлении файлов. */
+const CACHE = "english-trainer-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,16 +27,27 @@ self.addEventListener("activate", e => {
   );
 });
 
-/* Стратегия: сначала сеть, если её нет — кэш.
-   Так свежая версия подхватывается сразу, а без интернета всё работает из кэша. */
+/* страница просит применить новую версию немедленно */
+self.addEventListener("message", e => {
+  if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+/* Стратегия: сначала сеть, кэш — запасной вариант.
+   index.html запрашивается в обход кэша браузера, чтобы не залипала старая версия. */
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
+
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
+  const isPage =
+    req.mode === "navigate" ||
+    url.pathname.endsWith("/") ||
+    url.pathname.endsWith("index.html");
+
   e.respondWith(
-    fetch(req)
+    fetch(isPage ? new Request(req.url, { cache: "reload" }) : req)
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});

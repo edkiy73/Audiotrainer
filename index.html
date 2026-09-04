@@ -2716,6 +2716,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
+const BUILD="2026-09-04.4";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -4044,7 +4045,9 @@ function viewProgress(){
     '<div style="height:10px"></div>'+
     '<button class="btn sec" id="impBtn">'+ICON.repeat+' Загрузить из файла</button>'+
     '<input type="file" id="impFile" accept="application/json,.json" style="display:none">'+
-    '<div style="height:18px"></div><button class="btn ghost" id="rst">Сбросить прогресс</button><div style="height:16px"></div>';
+    '<div style="height:18px"></div><button class="btn ghost" id="rst">Сбросить прогресс</button>'+
+    '<p class="small" style="text-align:center;margin:16px 0 8px;font-size:11.5px">сборка '+BUILD+'</p>'+
+    '<div style="height:16px"></div>';
   app.innerHTML=h;
   app.querySelectorAll("[data-les]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.les}));
   const gw2=document.getElementById("goWeak");
@@ -4071,7 +4074,23 @@ function viewProgress(){
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",function(){
-    navigator.serviceWorker.register("sw.js").catch(function(e){console.log("SW не зарегистрирован:",e);});
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(reg){
+      reg.update();
+      if(reg.waiting)reg.waiting.postMessage({type:"SKIP_WAITING"});
+      reg.addEventListener("updatefound",function(){
+        var w=reg.installing;
+        if(!w)return;
+        w.addEventListener("statechange",function(){
+          if(w.state==="installed"&&navigator.serviceWorker.controller){
+            w.postMessage({type:"SKIP_WAITING"});
+          }
+        });
+      });
+    }).catch(function(e){console.log("SW не зарегистрирован:",e);});
+    var reloaded=false;
+    navigator.serviceWorker.addEventListener("controllerchange",function(){
+      if(reloaded)return; reloaded=true; location.reload();
+    });
   });
 }
 </script>
