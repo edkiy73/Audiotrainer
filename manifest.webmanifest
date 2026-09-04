@@ -1,32 +1,32 @@
 {
-  "name": "Слепая расшифровка",
-  "short_name": "Расшифровка",
-  "description": "Тренировка аудирования: слушаешь отрезками по 5 секунд, сверяешься с оригиналом раз в минуту.",
+  "name": "English Trainer",
+  "short_name": "English",
+  "description": "Грамматика и разговорный английский: 32 урока, дриллы на скорость, аудирование и голос",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#E4E8EB",
-  "theme_color": "#171A1F",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
   "lang": "ru",
   "icons": [
-    {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
     {
       "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
